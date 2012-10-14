@@ -1,13 +1,13 @@
 var http = require("http");
-var path = require("path");
 var pages = [
-     {route: '', output: 'Woohoo!'},
-     {route: 'about', output: 'A simple routing with Node example'},
-     {route: 'another page', output: function() {return 'Here\'s '+this.
-route;}}, 
+     {route: '/', output: 'Woohoo!'},
+     {route: '/about/this', output: 'Multilevel routing with Node'},
+     {route: '/about/node', output: 'Evented I/O for V8 JavaScript.'},
+     {route: '/another page', output: function () {return 'Here\'s ' +
+   this.route; }}
 ];
 http.createServer(function (request, response) {
-	var lookup = path.basename(decodeURI(request.url));
+	var lookup = decodeURI(request.url);
 	pages.forEach(function(page) {
 		if(page.route == lookup) {
 			response.writeHead(200, {'Content-Type' : 'text/html'});
