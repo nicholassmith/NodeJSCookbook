@@ -6,17 +6,36 @@ var mimeTypes = {
 	'.html' : 'text/html',
 	'.css' : 'text/css'
 };
+
+var cache = {};
+function cacheAndDeliver(f, cb) {
+	fs.stat(f, function(err, stats) {
+		var lastChanged = Date.parse(stats.ctime), 
+			isUpdated = (cache[f]) && lastChanged > cache[f].timestamp;
+		if(!cache[f] || isUpdated) {
+			fs.readFile(f, function(err, data) {
+				console.log('loading ' + f + ' from cache');
+				if (!err) {
+				    cache[f] = {content: data, timestamp: Date.now()
+				    };
+				}
+				cb(err, data);
+			});
+			return;
+		}
+		console.log('loading ' + f + ' from cache');
+		cb(null, cache[f].content);
+	});
+}
 //requires variables, mimeType object
 http.createServer(function(request, response) {
 	var lookup = path.basename(decodeURI(request.url)) || 'index.html',
 		f = 'content/' + lookup;
 	fs.exists(f, function (exists) {
 		if(exists) {
-			fs.readFile(f, function(err, data) {
-				if(err) { response.writeHead(500);
-					response.end('Server Error!'); 
-					return;
-				}
+			cacheAndDeliver(f, function(err, data) {
+				if(err) { response.writeHead(500); 
+					response.end('Server error!'); return; }
 				var headers = {'Content-type' : mimeTypes[path.extname(lookup)]};
 				response.writeHead(200, headers);
 				response.end(data);
