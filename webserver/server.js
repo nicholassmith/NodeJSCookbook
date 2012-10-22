@@ -33,12 +33,12 @@ http.createServer(function(request, response) {
 		f = 'content/' + lookup;
 	fs.exists(f, function (exists) {
 		if(exists) {
-			cacheAndDeliver(f, function(err, data) {
-				if(err) { response.writeHead(500); 
-					response.end('Server error!'); return; }
-				var headers = {'Content-type' : mimeTypes[path.extname(lookup)]};
+			var headers = {'Content-type': mimeTypes[path.extname(f)]};
+			if(cache[f]) {
 				response.writeHead(200, headers);
-				response.end(data);
+				response.end(cache[f].content);
+				return;
+			}
 			});
 			return;
 		}
