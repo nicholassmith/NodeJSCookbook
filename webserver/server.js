@@ -7,26 +7,24 @@ var mimeTypes = {
 	'.css' : 'text/css'
 };
 
-var cache = {};
-function cacheAndDeliver(f, cb) {
-	fs.stat(f, function(err, stats) {
-		var lastChanged = Date.parse(stats.ctime), 
-			isUpdated = (cache[f]) && lastChanged > cache[f].timestamp;
-		if(!cache[f] || isUpdated) {
-			fs.readFile(f, function(err, data) {
-				console.log('loading ' + f + ' from cache');
-				if (!err) {
-				    cache[f] = {content: data, timestamp: Date.now()
-				    };
+var cache = {
+	store: {},
+	maxSize: 26214400,
+	maxAge: 5400 * 1000,
+	cleanAfter: 7200 * 1000,
+	cleanedAt: 0,
+	clean: function(now) {
+		if(now - this.cleanAfter > this.cleanedAt) {
+			var that = this;
+			Object.keys(this.store).forEach(function (file) {
+				if(now > that.store[file].timestamp + that.maxAge) {
+					delete that.store[file];
 				}
-				cb(err, data);
 			});
-			return;
 		}
-		console.log('loading ' + f + ' from cache');
-		cb(null, cache[f].content);
-	});
-}
+	}
+};
+
 //requires variables, mimeType object
 http.createServer(function(request, response) {
 	var lookup = path.basename(decodeURI(request.url)) || 'index.html',
@@ -39,10 +37,32 @@ http.createServer(function(request, response) {
 				response.end(cache[f].content);
 				return;
 			}
+			var s = fs.createReadStream(f).once('open', function () {
+				//do stuff when the stream opens
+				response.writeHead(200, headers);
+				this.pipe(response);
+			}).once('error', function(e) {
+				console.log(e);
+				response.writeHead(500);
+				response.end('Server Error');
 			});
+
+			fs.stat(f, function(err, stats){
+				if(stats.size < cache.size) {
+					var bufferOffset=0;
+					cache[f] = {content : new Buffer(stats.size),
+										timestamp: Date.now()};
+					s.on('data', function(data){
+						data.copy(cache.store[f].content, bufferOffset);
+						bufferOffset += data.length;
+					});
+				}
+			});
+
 			return;
 		}
 		response.writeHead(404);
 		response.end();
 	});
+cache.clean(Date.now());
 }).listen(8080);
