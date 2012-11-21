@@ -28,6 +28,7 @@ hotTrends.xmlHandler = function(response, cb) {
 
 function makeCall(urlOpts, handler, cb) {
 	http.get(urlOpts, function(response) {
+		console.log("About to try handler");
 		handler(response, cb);
 	}).on('error', function(e) {
 		console.log("Connection Error: " + e.message);
